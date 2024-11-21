@@ -1,5 +1,5 @@
 /* eslint-disable react-native/no-inline-styles */
-import React, {useState, useEffect} from 'react';
+import React, {useEffect} from 'react';
 import {
   Text,
   View,
@@ -18,7 +18,7 @@ import {Colors} from 'react-native/Libraries/NewAppScreen';
 
 import {Device} from 'react-native-ble-plx';
 
-import BLEManagerClass from './src/service/BLEManager';
+import useConnect from './src/service/useBleConnect';
 
 const App = () => {
   const isDarkMode = useColorScheme() === 'dark';
@@ -27,35 +27,41 @@ const App = () => {
     width: '100%',
   };
 
-  const [devices, setDevices] = useState<Device[]>([]);
-  const [scanning, setScanning] = useState<boolean>(false);
-  const [connectedDevice, setConnectedDevice] = useState<Device | null>(null);
+  const {
+    connectToDevice,
+    requestPermissions,
+    isScanning,
+    data: devices,
+    connectedDeviceItems: connectedDevice,
+    stopScanning,
+    startScanning,
+    disconnectFromDevice,
+  } = useConnect();
 
   useEffect(() => {
     return () => {
-      BLEManagerClass.stopScanning();
-      BLEManagerClass.destroy();
+      stopScanning();
     };
-  }, []);
+  }, [stopScanning]);
 
-  const handleDeviceDiscovered = (device: Device) => {
-    if (device.name) {
-      console.log({device});
+  useEffect(() => {
+    console.log({L51: devices});
+  }, [devices]);
+
+  console.log({connectedDevice});
+
+  const getDeviceName = (device: Device): string => {
+    if (device.name !== null) {
+      return device.name as string;
+    } else if (device.localName !== null) {
+      return device.localName as string;
+    } else {
+      return 'Unknown Device';
     }
-
-    setDevices(prevDevices => {
-      if (!prevDevices.find(d => d.id === device.id)) {
-        return [...prevDevices, device];
-      }
-      return prevDevices;
-    });
   };
 
-  const handleError = (error: any) => {
-    console.error('Error:', error);
-  };
   const startScan = async () => {
-    const permissionsGranted = await BLEManagerClass.requestPermissions();
+    const permissionsGranted = await requestPermissions();
     if (!permissionsGranted) {
       Alert.alert(
         'Permissions Required',
@@ -72,36 +78,7 @@ const App = () => {
       );
     }
 
-    setDevices([]);
-    setScanning(true);
-    BLEManagerClass.startScanning(handleDeviceDiscovered, handleError);
-  };
-
-  const connectToDevice = async (device: Device) => {
-    console.log('Connecting to device:', device.name);
-    BLEManagerClass.stopScanning();
-    const connectedDeviceItem = await BLEManagerClass.connectToDevice(device);
-
-    if (connectedDeviceItem) {
-      console.log('Device connected:', connectedDevice);
-      setConnectedDevice(connectedDeviceItem);
-      // Proceed with communication (e.g., reading/writing characteristics)
-    } else {
-      console.log('Failed to connect to the device.');
-      setConnectedDevice(null);
-    }
-  };
-
-  const disconectFromDevice = () => {
-    if (connectedDevice) {
-      BLEManagerClass.disconnectFromDevice(connectedDevice);
-      setConnectedDevice(null);
-    }
-  };
-
-  const stopScan = () => {
-    BLEManagerClass.stopScanning();
-    setScanning(false);
+    startScanning();
   };
 
   return (
@@ -131,7 +108,7 @@ const App = () => {
               React Native BLE Manager
             </Text>
           </View>
-          {!scanning && (
+          {!isScanning && (
             <Pressable style={styles.buttonStyle} onPress={startScan}>
               <Text
                 style={{
@@ -142,8 +119,8 @@ const App = () => {
               </Text>
             </Pressable>
           )}
-          {scanning && (
-            <Pressable style={styles.buttonStyle} onPress={stopScan}>
+          {isScanning && (
+            <Pressable style={styles.buttonStyle} onPress={stopScanning}>
               <Text
                 style={{
                   ...styles.buttonTextStyle,
@@ -156,25 +133,35 @@ const App = () => {
           <FlatList
             data={devices}
             keyExtractor={item => item.id}
-            renderItem={({item}) => (
-              <View style={styles.device}>
-                <Text>{item.name || 'Unknown Device'}</Text>
-                {item.isConnectable && item.id !== connectedDevice?.id && (
-                  <Pressable
-                    style={styles.btnConnect}
-                    onPress={() => connectToDevice(item)}>
-                    <Text>Connect</Text>
-                  </Pressable>
-                )}
-                {item.isConnectable && item.id === connectedDevice?.id && (
-                  <Pressable
-                    style={styles.btnConnect}
-                    onPress={disconectFromDevice}>
-                    <Text>Disconnect</Text>
-                  </Pressable>
-                )}
-              </View>
-            )}
+            renderItem={({item}) => {
+              console.log({item: item.localName});
+
+              return (
+                <View style={styles.device}>
+                  <Text
+                    style={{color: isDarkMode ? Colors.white : Colors.black}}>
+                    {' '}
+                    {getDeviceName(item)}
+                  </Text>
+                  {item.isConnectable &&
+                    !connectedDevice.find(d => d.id === item.id) && (
+                      <Pressable
+                        style={styles.btnConnect}
+                        onPress={() => connectToDevice(item)}>
+                        <Text>Connect</Text>
+                      </Pressable>
+                    )}
+                  {item.isConnectable &&
+                    connectedDevice.find(d => d.id === item.id) && (
+                      <Pressable
+                        style={styles.btnConnect}
+                        onPress={() => disconnectFromDevice(item)}>
+                        <Text>Disconnect</Text>
+                      </Pressable>
+                    )}
+                </View>
+              );
+            }}
           />
         </View>
       </ScrollView>

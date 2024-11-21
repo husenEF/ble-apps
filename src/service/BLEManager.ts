@@ -111,5 +111,4 @@ class BLEManager {
   }
 }
 
-
 export default new BLEManager();
