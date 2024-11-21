@@ -29,10 +29,12 @@ const App = () => {
   const isDarkMode = useColorScheme() === 'dark';
   const backgroundStyle = {
     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
+    width: '100%',
   };
 
   const [devices, setDevices] = useState<Device[]>([]);
   const [scanning, setScanning] = useState<boolean>(false);
+  const [connectedDevice, setConnectedDevice] = useState<Device | null>(null);
 
   useEffect(() => {
     return () => {
@@ -42,6 +44,10 @@ const App = () => {
   }, []);
 
   const handleDeviceDiscovered = (device: Device) => {
+    if (device.name) {
+      console.log({device});
+    }
+
     setDevices(prevDevices => {
       if (!prevDevices.find(d => d.id === device.id)) {
         return [...prevDevices, device];
@@ -56,10 +62,19 @@ const App = () => {
   const startScan = async () => {
     const permissionsGranted = await BLEManagerClass.requestPermissions();
     if (!permissionsGranted) {
-      console.log(
+      Alert.alert(
+        'Permissions Required',
         'Bluetooth permissions are required to scan for devices. Please enable them in your device settings.',
+        [
+          {text: 'Cancel', style: 'cancel'},
+          {
+            text: 'Open Settings',
+            onPress: () => {
+              Linking.openSettings();
+            },
+          },
+        ],
       );
-      return;
     }
 
     setDevices([]);
@@ -67,14 +82,32 @@ const App = () => {
     BLEManagerClass.startScanning(handleDeviceDiscovered, handleError);
   };
 
+  const connectToDevice = async (device: Device) => {
+    console.log('Connecting to device:', device.name);
+    BLEManagerClass.stopScanning();
+    const connectedDeviceItem = await BLEManagerClass.connectToDevice(device);
+
+    if (connectedDeviceItem) {
+      console.log('Device connected:', connectedDevice);
+      setConnectedDevice(connectedDeviceItem);
+      // Proceed with communication (e.g., reading/writing characteristics)
+    } else {
+      console.log('Failed to connect to the device.');
+      setConnectedDevice(null);
+    }
+  };
+
+  const disconectFromDevice = () => {
+    if (connectedDevice) {
+      // BLEManagerClass.disconnectFromDevice(connectedDevice);
+      setConnectedDevice(null);
+    }
+  };
+
   const stopScan = () => {
     BLEManagerClass.stopScanning();
     setScanning(false);
   };
-
-  useEffect(() => {
-    console.log({devices});
-  }, [devices]);
 
   return (
     <SafeAreaView style={[backgroundStyle, styles.mainBody]}>
@@ -82,7 +115,9 @@ const App = () => {
         barStyle={isDarkMode ? 'light-content' : 'dark-content'}
         backgroundColor={backgroundStyle.backgroundColor}
       />
+
       <ScrollView
+        horizontal={true}
         style={backgroundStyle}
         contentContainerStyle={styles.mainBody}
         contentInsetAdjustmentBehavior="automatic">
@@ -127,9 +162,23 @@ const App = () => {
             data={devices}
             keyExtractor={item => item.id}
             renderItem={({item}) => (
-              <Text style={styles.device}>
-                {item.name || 'Unknown Device'} ({item.id})
-              </Text>
+              <View style={styles.device}>
+                <Text>{item.name || 'Unknown Device'}</Text>
+                {item.isConnectable && item.id !== connectedDevice?.id && (
+                  <Pressable
+                    style={styles.btnConnect}
+                    onPress={() => connectToDevice(item)}>
+                    <Text>Connect</Text>
+                  </Pressable>
+                )}
+                {item.isConnectable && item.id === connectedDevice?.id && (
+                  <Pressable
+                    style={styles.btnConnect}
+                    onPress={disconectFromDevice}>
+                    <Text>Disconnect</Text>
+                  </Pressable>
+                )}
+              </View>
             )}
           />
         </View>
@@ -166,6 +215,15 @@ const styles = StyleSheet.create({
     padding: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#ddd',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  btnConnect: {
+    backgroundColor: '#307ecc',
+    borderWidth: 0,
+    color: '#FFFFFF',
+    padding: 4,
+    borderRadius: 8,
   },
 });
 export default App;
