@@ -3,17 +3,12 @@ import React, {useState, useEffect} from 'react';
 import {
   Text,
   View,
-  Platform,
   StatusBar,
   ScrollView,
   StyleSheet,
   Dimensions,
   SafeAreaView,
-  NativeModules,
   useColorScheme,
-  TouchableOpacity,
-  NativeEventEmitter,
-  PermissionsAndroid,
   Pressable,
   Alert,
   Linking,
@@ -99,7 +94,7 @@ const App = () => {
 
   const disconectFromDevice = () => {
     if (connectedDevice) {
-      // BLEManagerClass.disconnectFromDevice(connectedDevice);
+      BLEManagerClass.disconnectFromDevice(connectedDevice);
       setConnectedDevice(null);
     }
   };
