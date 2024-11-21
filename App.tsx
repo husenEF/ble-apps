@@ -43,7 +43,7 @@ const App = () => {
                 textAlign: 'center',
                 color: isDarkMode ? Colors.white : Colors.black,
               }}>
-              React Native BLE Manager Tutorial
+              React Native BLE Manager
             </Text>
           </View>
           <TouchableOpacity activeOpacity={0.5} style={styles.buttonStyle}>
