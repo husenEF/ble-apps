@@ -36,14 +36,38 @@ const App = () => {
     stopScanning,
     startScanning,
     disconnectFromDevice,
+    waitUntilBluetoothReady,
+    isBluetoothReady,
+    bluetoothState,
   } = useConnect();
 
   useEffect(() => {
+    console.log({L50: bluetoothState});
+
     return () => {
       stopScanning();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!isBluetoothReady) {
+      Alert.alert(
+        'Bluetooth not ready',
+        'Pleases enable Bluetooth in your device settings.',
+        [
+          {text: 'Cancel', style: 'cancel'},
+          {
+            text: 'Open Bluetooth Settings',
+            onPress: () => {
+              Linking.sendIntent('android.settings.BLUETOOTH_SETTINGS');
+            },
+          },
+        ],
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBluetoothReady]);
 
   useEffect(() => {
     console.log({L51: devices});
@@ -62,26 +86,47 @@ const App = () => {
   };
 
   const startScan = async () => {
-    const permissionsGranted = await requestPermissions();
-    console.log('Starting scan...x', permissionsGranted);
+    try {
+      const permissionsGranted = await requestPermissions();
+      if (!permissionsGranted) {
+        console.error('Bluetooth permissions are not granted.');
+        Alert.alert(
+          'Permissions Required',
+          'Bluetooth permissions are required to scan for devices. Please enable them in your device settings.',
+          [
+            {text: 'Cancel', style: 'cancel'},
+            {
+              text: 'Open Settings',
+              onPress: () => {
+                Linking.openSettings();
+              },
+            },
+          ],
+        );
+        return;
+      }
 
-    if (!permissionsGranted) {
+      const isReady = await waitUntilBluetoothReady();
+      if (isReady) {
+        console.log('Bluetooth is ready. Starting scan...');
+        startScanning();
+      }
+    } catch (error) {
+      console.error('Error initializing Bluetooth:', error);
       Alert.alert(
-        'Permissions Required',
-        'Bluetooth permissions are required to scan for devices. Please enable them in your device settings.',
+        'Bluetooth not ready',
+        'BluetoothPlease enable Bluetooth in your device settings.',
         [
           {text: 'Cancel', style: 'cancel'},
           {
-            text: 'Open Settings',
+            text: 'Open Bluetooth Settings',
             onPress: () => {
-              Linking.openSettings();
+              Linking.sendIntent('android.settings.BLUETOOTH_SETTINGS');
             },
           },
         ],
       );
     }
-
-    startScanning();
   };
 
   return (
@@ -137,7 +182,7 @@ const App = () => {
             data={devices}
             keyExtractor={item => item.id}
             renderItem={({item}) => {
-              console.log({item: item.localName});
+              item.localName !== null && console.log({item: item.localName});
 
               return (
                 <View style={styles.device}>

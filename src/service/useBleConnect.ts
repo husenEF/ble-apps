@@ -6,11 +6,14 @@ interface PropConnect {
   data: Device[];
   connectedDeviceItems: Device[];
   isScanning: boolean;
+  bluetoothState: string | null;
+  isBluetoothReady: boolean;
   requestPermissions: () => Promise<boolean>;
   startScanning: () => void;
   stopScanning: () => void;
   connectToDevice: (device: Device) => Promise<void>;
   disconnectFromDevice: (device: Device) => Promise<void>;
+  waitUntilBluetoothReady: () => Promise<boolean>;
 }
 
 const useConnect = (): PropConnect => {
@@ -20,10 +23,24 @@ const useConnect = (): PropConnect => {
   const [connectedDeviceItems, setConnectedDeviceItems] = useState<Device[]>(
     [],
   );
+  const [bluetoothState, setBluetoothState] = useState<string | null>(null);
+  const [isBluetoothReady, setIsBluetoothReady] = useState(false);
 
   useEffect(() => {
+    const subscription = manager.onStateChange(state => {
+      console.log(`Bluetooth state changed: ${state}`);
+      setBluetoothState(state);
+
+      if (state === 'PoweredOn') {
+        setIsBluetoothReady(true);
+      } else {
+        setIsBluetoothReady(false);
+      }
+    }, true); // Check the current state immediately.
+
     return () => {
       console.log('Cleaning up BLE manager...');
+      subscription.remove();
       manager.destroy();
     };
   }, [manager]);
@@ -63,6 +80,25 @@ const useConnect = (): PropConnect => {
     setIsScanning(false);
   };
 
+  const waitUntilBluetoothReady = async (): Promise<boolean> => {
+    return new Promise((resolve, reject) => {
+      const subscription = manager.onStateChange(state => {
+        console.log(`Bluetooth state: ${state}`);
+        if (state === 'PoweredOn') {
+          subscription.remove(); // Remove the listener once the state is "PoweredOn"
+          resolve(true);
+        } else if (
+          state === 'Unauthorized' ||
+          state === 'Unsupported' ||
+          state === 'PoweredOff'
+        ) {
+          subscription.remove();
+          reject(new Error(`Bluetooth state: ${state}`));
+        }
+      }, true); // The second argument "true" triggers the current state immediately.
+    });
+  };
+
   const startScanning = async (): Promise<void> => {
     if (isScanning) {
       console.log('Already scanning');
@@ -77,7 +113,7 @@ const useConnect = (): PropConnect => {
       {allowDuplicates: false},
       (error, device) => {
         if (error) {
-          console.log('Scan error:', error);
+          console.log('Scan error:', {error});
           stopScanning();
           return;
         }
@@ -101,7 +137,9 @@ const useConnect = (): PropConnect => {
       }
 
       console.log(`Connecting to device: ${device.name || 'Unknown Device'}`);
-      const connectedDevice = await manager.connectToDevice(device.id);
+      const connectedDevice = await manager.connectToDevice(device.id, {
+        autoConnect: true,
+      });
       await connectedDevice.discoverAllServicesAndCharacteristics();
 
       console.log(
@@ -126,6 +164,7 @@ const useConnect = (): PropConnect => {
       await manager.cancelDeviceConnection(device.id);
       console.log('Disconnected from device:', device.name);
     } catch (error) {
+      setConnectedDeviceItems(prev => prev.filter(d => d.id !== device.id));
       console.error('Failed to disconnect from device:', error);
     }
   };
@@ -139,6 +178,9 @@ const useConnect = (): PropConnect => {
     stopScanning,
     connectToDevice,
     disconnectFromDevice,
+    waitUntilBluetoothReady,
+    bluetoothState,
+    isBluetoothReady,
   };
 };
 
