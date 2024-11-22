@@ -42,7 +42,8 @@ const App = () => {
     return () => {
       stopScanning();
     };
-  }, [stopScanning]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     console.log({L51: devices});
@@ -62,6 +63,8 @@ const App = () => {
 
   const startScan = async () => {
     const permissionsGranted = await requestPermissions();
+    console.log('Starting scan...x', permissionsGranted);
+
     if (!permissionsGranted) {
       Alert.alert(
         'Permissions Required',

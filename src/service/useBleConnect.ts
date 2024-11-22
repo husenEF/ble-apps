@@ -43,6 +43,8 @@ const useConnect = (): PropConnect => {
 
       const granted = await PermissionsAndroid.requestMultiple(permissions);
 
+      console.log('Granted:', granted);
+
       return permissions.every(
         permission =>
           granted[permission] === PermissionsAndroid.RESULTS.GRANTED,
@@ -74,13 +76,11 @@ const useConnect = (): PropConnect => {
       null,
       {allowDuplicates: false},
       (error, device) => {
-        console.log({error});
-
-        // if (error) {
-        //   console.log('Scan error:', error);
-        //   stopScanning();
-        //   return;
-        // }
+        if (error) {
+          console.log('Scan error:', error);
+          stopScanning();
+          return;
+        }
 
         if (device) {
           setData(prevDevices => {
