@@ -61,30 +61,37 @@ const useConnect = (): PropConnect => {
     setIsScanning(false);
   };
 
-  const startScanning = () => {
+  const startScanning = async (): Promise<void> => {
     if (isScanning) {
       console.log('Already scanning');
       return;
     }
+    setData([]);
+    setIsScanning(true);
 
     console.log('Starting scan...');
-    manager.startDeviceScan(null, {allowDuplicates: false}, (error, device) => {
-      if (error) {
-        console.log('Scan error:', error);
-        stopScanning();
-        return;
-      }
+    await manager.startDeviceScan(
+      null,
+      {allowDuplicates: false},
+      (error, device) => {
+        console.log({error});
 
-      if (device) {
-        setData(prevDevices => {
-          if (!prevDevices.find(d => d.id === device.id)) {
-            return [...prevDevices, device];
-          }
-          return prevDevices;
-        });
-      }
-    });
-    setIsScanning(true);
+        // if (error) {
+        //   console.log('Scan error:', error);
+        //   stopScanning();
+        //   return;
+        // }
+
+        if (device) {
+          setData(prevDevices => {
+            if (!prevDevices.find(d => d.id === device.id)) {
+              return [...prevDevices, device];
+            }
+            return prevDevices;
+          });
+        }
+      },
+    );
   };
 
   const connectToDevice = async (device: Device): Promise<void> => {
