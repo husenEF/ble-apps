@@ -100,6 +100,15 @@ class BLEManager {
       return null; // Return null if the connection fails
     }
   }
+
+  async disconnectFromDevice(device: Device): Promise<void> {
+    try {
+      await this.manager.cancelDeviceConnection(device.id);
+      console.log('Disconnected from device:', device.name);
+    } catch (error) {
+      console.error('Failed to disconnect from device:', error);
+    }
+  }
 }
 
 export default new BLEManager();

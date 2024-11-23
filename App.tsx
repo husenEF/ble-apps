@@ -1,19 +1,14 @@
 /* eslint-disable react-native/no-inline-styles */
-import React, {useState, useEffect} from 'react';
+import React, {useEffect} from 'react';
 import {
   Text,
   View,
-  Platform,
   StatusBar,
   ScrollView,
   StyleSheet,
   Dimensions,
   SafeAreaView,
-  NativeModules,
   useColorScheme,
-  TouchableOpacity,
-  NativeEventEmitter,
-  PermissionsAndroid,
   Pressable,
   Alert,
   Linking,
@@ -23,7 +18,7 @@ import {Colors} from 'react-native/Libraries/NewAppScreen';
 
 import {Device} from 'react-native-ble-plx';
 
-import BLEManagerClass from './src/service/BLEManager';
+import useConnect from './src/service/useBleConnect';
 
 const App = () => {
   const isDarkMode = useColorScheme() === 'dark';
@@ -32,81 +27,105 @@ const App = () => {
     width: '100%',
   };
 
-  const [devices, setDevices] = useState<Device[]>([]);
-  const [scanning, setScanning] = useState<boolean>(false);
-  const [connectedDevice, setConnectedDevice] = useState<Device | null>(null);
+  const {
+    connectToDevice,
+    requestPermissions,
+    isScanning,
+    data: devices,
+    connectedDeviceItems: connectedDevice,
+    stopScanning,
+    startScanning,
+    disconnectFromDevice,
+    waitUntilBluetoothReady,
+    bluetoothState,
+  } = useConnect();
 
   useEffect(() => {
+    console.log({L50: bluetoothState});
+
     return () => {
-      BLEManagerClass.stopScanning();
-      BLEManagerClass.destroy();
+      stopScanning();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleDeviceDiscovered = (device: Device) => {
-    if (device.name) {
-      console.log({device});
+  // useEffect(() => {
+  //   if (!isBluetoothReady) {
+  //     Alert.alert(
+  //       'Bluetooth not ready',
+  //       'Pleases enable Bluetooth in your device settings.',
+  //       [
+  //         {text: 'Cancel', style: 'cancel'},
+  //         {
+  //           text: 'Open Bluetooth Settings',
+  //           onPress: () => {
+  //             Linking.sendIntent('android.settings.BLUETOOTH_SETTINGS');
+  //           },
+  //         },
+  //       ],
+  //     );
+  //   }
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [isBluetoothReady]);
+
+  useEffect(() => {
+    console.log({L51: devices});
+  }, [devices]);
+
+  console.log({connectedDevice});
+
+  const getDeviceName = (device: Device): string => {
+    if (device.name !== null) {
+      return device.name as string;
+    } else if (device.localName !== null) {
+      return device.localName as string;
+    } else {
+      return 'Unknown Device';
     }
-
-    setDevices(prevDevices => {
-      if (!prevDevices.find(d => d.id === device.id)) {
-        return [...prevDevices, device];
-      }
-      return prevDevices;
-    });
   };
 
-  const handleError = (error: any) => {
-    console.error('Error:', error);
-  };
   const startScan = async () => {
-    const permissionsGranted = await BLEManagerClass.requestPermissions();
-    if (!permissionsGranted) {
+    try {
+      const permissionsGranted = await requestPermissions();
+      if (!permissionsGranted) {
+        console.error('Bluetooth permissions are not granted.');
+        Alert.alert(
+          'Permissions Required',
+          'Bluetooth permissions are required to scan for devices. Please enable them in your device settings.',
+          [
+            {text: 'Cancel', style: 'cancel'},
+            {
+              text: 'Open Settings',
+              onPress: () => {
+                Linking.openSettings();
+              },
+            },
+          ],
+        );
+        return;
+      }
+
+      const isReady = await waitUntilBluetoothReady();
+      if (isReady) {
+        console.log('Bluetooth is ready. Starting scan...');
+        startScanning();
+      }
+    } catch (error) {
+      console.error('Error initializing Bluetooth:', error);
       Alert.alert(
-        'Permissions Required',
-        'Bluetooth permissions are required to scan for devices. Please enable them in your device settings.',
+        'Bluetooth not ready',
+        'BluetoothPlease enable Bluetooth in your device settings.',
         [
           {text: 'Cancel', style: 'cancel'},
           {
-            text: 'Open Settings',
+            text: 'Open Bluetooth Settings',
             onPress: () => {
-              Linking.openSettings();
+              Linking.sendIntent('android.settings.BLUETOOTH_SETTINGS');
             },
           },
         ],
       );
     }
-
-    setDevices([]);
-    setScanning(true);
-    BLEManagerClass.startScanning(handleDeviceDiscovered, handleError);
-  };
-
-  const connectToDevice = async (device: Device) => {
-    console.log('Connecting to device:', device.name);
-    BLEManagerClass.stopScanning();
-    const connectedDeviceItem = await BLEManagerClass.connectToDevice(device);
-
-    if (connectedDeviceItem) {
-      console.log('Device connected:', connectedDevice);
-      setConnectedDevice(connectedDeviceItem);
-      // Proceed with communication (e.g., reading/writing characteristics)
-    } else {
-      console.log('Failed to connect to the device.');
-      setConnectedDevice(null);
-    }
-  };
-
-  const disconectFromDevice = () => {
-    if (connectedDevice) {
-      // BLEManagerClass.disconnectFromDevice(connectedDevice);
-      setConnectedDevice(null);
-    }
-  };
-
-  const stopScan = () => {
-    BLEManagerClass.stopScanning();
-    setScanning(false);
   };
 
   return (
@@ -136,7 +155,7 @@ const App = () => {
               React Native BLE Manager
             </Text>
           </View>
-          {!scanning && (
+          {!isScanning && (
             <Pressable style={styles.buttonStyle} onPress={startScan}>
               <Text
                 style={{
@@ -147,8 +166,8 @@ const App = () => {
               </Text>
             </Pressable>
           )}
-          {scanning && (
-            <Pressable style={styles.buttonStyle} onPress={stopScan}>
+          {isScanning && (
+            <Pressable style={styles.buttonStyle} onPress={stopScanning}>
               <Text
                 style={{
                   ...styles.buttonTextStyle,
@@ -161,25 +180,35 @@ const App = () => {
           <FlatList
             data={devices}
             keyExtractor={item => item.id}
-            renderItem={({item}) => (
-              <View style={styles.device}>
-                <Text>{item.name || 'Unknown Device'}</Text>
-                {item.isConnectable && item.id !== connectedDevice?.id && (
-                  <Pressable
-                    style={styles.btnConnect}
-                    onPress={() => connectToDevice(item)}>
-                    <Text>Connect</Text>
-                  </Pressable>
-                )}
-                {item.isConnectable && item.id === connectedDevice?.id && (
-                  <Pressable
-                    style={styles.btnConnect}
-                    onPress={disconectFromDevice}>
-                    <Text>Disconnect</Text>
-                  </Pressable>
-                )}
-              </View>
-            )}
+            renderItem={({item}) => {
+              item.localName !== null && console.log({item: item.localName});
+
+              return (
+                <View style={styles.device}>
+                  <Text
+                    style={{color: isDarkMode ? Colors.white : Colors.black}}>
+                    {' '}
+                    {getDeviceName(item)}
+                  </Text>
+                  {item.isConnectable &&
+                    !connectedDevice.find(d => d.id === item.id) && (
+                      <Pressable
+                        style={styles.btnConnect}
+                        onPress={() => connectToDevice(item)}>
+                        <Text>Connect</Text>
+                      </Pressable>
+                    )}
+                  {item.isConnectable &&
+                    connectedDevice.find(d => d.id === item.id) && (
+                      <Pressable
+                        style={styles.btnConnect}
+                        onPress={() => disconnectFromDevice(item)}>
+                        <Text>Disconnect</Text>
+                      </Pressable>
+                    )}
+                </View>
+              );
+            }}
           />
         </View>
       </ScrollView>
