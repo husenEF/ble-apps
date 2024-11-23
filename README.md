@@ -57,8 +57,8 @@ To start contributing or running this app locally, follow these steps:
 ### 1. Clone the Repository  
 Open your terminal and run:
 ```bash
-git clone <repository-url>
-cd <repository-directory>
+git clone https://github.com/husenEF/ble-apps
+cd ble-apps
 ```
 
 ### 2. Install Dependencies
