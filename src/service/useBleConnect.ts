@@ -25,9 +25,10 @@ const useConnect = (): PropConnect => {
   );
   const [bluetoothState, setBluetoothState] = useState<string | null>(null);
   const [isBluetoothReady, setIsBluetoothReady] = useState(false);
+  const [subscription, setSubscription] = useState<any>();
 
   useEffect(() => {
-    const subscription = manager.onStateChange(state => {
+    const subscriptionData = manager.onStateChange(state => {
       console.log(`Bluetooth state changed: ${state}`);
       setBluetoothState(state);
 
@@ -50,13 +51,17 @@ const useConnect = (): PropConnect => {
         );
       }
     }, true); // Check the current state immediately.
+    setSubscription(subscriptionData);
+  }, [manager]);
 
+  useEffect(() => {
     return () => {
       console.log('Cleaning up BLE manager...');
       subscription.remove();
       manager.destroy();
     };
-  }, [manager]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const requestPermissions = async (): Promise<boolean> => {
     if (Platform.OS === 'android') {
