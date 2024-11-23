@@ -52,6 +52,8 @@ const useConnect = (): PropConnect => {
       }
     }, true); // Check the current state immediately.
     setSubscription(subscriptionData);
+    getAllDeviceConnected();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [manager]);
 
   useEffect(() => {
@@ -175,6 +177,9 @@ const useConnect = (): PropConnect => {
     } catch (error) {
       console.error('Failed to connect to device:', error);
       setConnectedDeviceItems([]);
+    } finally {
+      const connectedDevices = await getAllDeviceConnected();
+      console.log({connectedDevices});
     }
   };
 
@@ -190,6 +195,20 @@ const useConnect = (): PropConnect => {
       console.log(`Successfully disconnected from device ${device.id}.`);
     } catch (error) {
       console.error(`Failed to disconnect from device ${device.id}:`, error);
+    }
+  };
+
+  const getAllDeviceConnected = async (
+    serviceUUIDs: string[] = [],
+  ): Promise<Device[]> => {
+    try {
+      // Fetch connected devices for the specified service UUIDs
+      const connectedDevices = await manager.connectedDevices(serviceUUIDs);
+      console.log('Connected devices:', connectedDevices);
+      return connectedDevices;
+    } catch (error) {
+      console.error('Failed to fetch connected devices:', error);
+      return [];
     }
   };
 
