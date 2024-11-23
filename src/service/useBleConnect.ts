@@ -1,6 +1,6 @@
 import {useEffect, useState} from 'react';
 import {Platform, PermissionsAndroid, Alert, Linking} from 'react-native';
-import {BleManager, type Device} from 'react-native-ble-plx';
+import {BleManager, Device} from 'react-native-ble-plx';
 
 interface PropConnect {
   data: Device[];
@@ -57,7 +57,7 @@ const useConnect = (): PropConnect => {
   useEffect(() => {
     return () => {
       console.log('Cleaning up BLE manager...');
-      subscription.remove();
+      subscription && subscription.remove();
       manager.destroy();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -100,7 +100,7 @@ const useConnect = (): PropConnect => {
 
   const waitUntilBluetoothReady = async (): Promise<boolean> => {
     return new Promise((resolve, reject) => {
-      const subscription = manager.onStateChange(state => {
+      const subscriptionState = manager.onStateChange(state => {
         console.log(`Bluetooth state: ${state}`);
         if (state === 'PoweredOn') {
           subscription.remove(); // Remove the listener once the state is "PoweredOn"
@@ -110,7 +110,7 @@ const useConnect = (): PropConnect => {
           state === 'Unsupported' ||
           state === 'PoweredOff'
         ) {
-          subscription.remove();
+          subscriptionState.remove();
           reject(new Error(`Bluetooth state: ${state}`));
         }
       }, true); // The second argument "true" triggers the current state immediately.
@@ -180,11 +180,16 @@ const useConnect = (): PropConnect => {
 
   const disconnectFromDevice = async (device: Device): Promise<void> => {
     try {
+      const isConnected = await manager.isDeviceConnected(device.id);
+      if (!isConnected) {
+        console.log(`Device ${device.id} is not connected.`);
+        return;
+      }
+
       await manager.cancelDeviceConnection(device.id);
-      console.log('Disconnected from device:', device.name);
+      console.log(`Successfully disconnected from device ${device.id}.`);
     } catch (error) {
-      setConnectedDeviceItems(prev => prev.filter(d => d.id !== device.id));
-      console.error('Failed to disconnect from device:', error);
+      console.error(`Failed to disconnect from device ${device.id}:`, error);
     }
   };
 

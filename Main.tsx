@@ -44,6 +44,8 @@ export default function MainApps() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  console.log({L47: connectedDevice});
+
   const getDeviceName = (device: Device): string => {
     if (device.name !== null) {
       return device.name as string;
@@ -117,7 +119,7 @@ export default function MainApps() {
           styles.scanButton,
           isScanning ? styles.scanningButton : styles.startButton,
         ]}
-        onPress={startScan}
+        onPress={isScanning ? stopScanning : startScan}
         accessibilityRole="button"
         accessibilityState={{selected: isScanning}}
         accessibilityLabel={
@@ -144,9 +146,15 @@ export default function MainApps() {
                 <Text style={styles.deviceRSSI}>Signal: {device.rssi} dBm</Text>
               </View>
             </View>
-            <Pressable onPress={() => connectToDevice(device)}>
-              <Text style={styles.connectButton}>Connect</Text>
-            </Pressable>
+            {connectedDevice.find(item => item.id === device.id) ? (
+              <Pressable onPress={() => disconnectFromDevice(device)}>
+                <Text style={styles.disconnectButton}>Disconnect</Text>
+              </Pressable>
+            ) : (
+              <Pressable onPress={() => connectToDevice(device)}>
+                <Text style={styles.connectButton}>Connect</Text>
+              </Pressable>
+            )}
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -228,6 +236,10 @@ const styles = StyleSheet.create({
   },
   connectButton: {
     color: '#2563eb',
+    fontWeight: '600',
+  },
+  disconnectButton: {
+    color: '#dc2626',
     fontWeight: '600',
   },
   scanningIndicator: {
