@@ -1,5 +1,5 @@
 import {useEffect, useState} from 'react';
-import {Platform, PermissionsAndroid} from 'react-native';
+import {Platform, PermissionsAndroid, Alert, Linking} from 'react-native';
 import {BleManager, type Device} from 'react-native-ble-plx';
 
 interface PropConnect {
@@ -35,6 +35,19 @@ const useConnect = (): PropConnect => {
         setIsBluetoothReady(true);
       } else {
         setIsBluetoothReady(false);
+        Alert.alert(
+          'Bluetooth not ready',
+          'Pleases enable Bluetooth in your device settings.',
+          [
+            {text: 'Cancel', style: 'cancel'},
+            {
+              text: 'Open Bluetooth Settings',
+              onPress: () => {
+                Linking.sendIntent('android.settings.BLUETOOTH_SETTINGS');
+              },
+            },
+          ],
+        );
       }
     }, true); // Check the current state immediately.
 
@@ -146,6 +159,7 @@ const useConnect = (): PropConnect => {
         `Successfully connected to device: ${
           connectedDevice.name || 'Unknown Device'
         }`,
+        {connectedDevice},
       );
       setConnectedDeviceItems(prevDevices => {
         if (!prevDevices.find(d => d.id === connectedDevice.id)) {

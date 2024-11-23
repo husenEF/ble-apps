@@ -37,7 +37,6 @@ const App = () => {
     startScanning,
     disconnectFromDevice,
     waitUntilBluetoothReady,
-    isBluetoothReady,
     bluetoothState,
   } = useConnect();
 
@@ -50,24 +49,24 @@ const App = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    if (!isBluetoothReady) {
-      Alert.alert(
-        'Bluetooth not ready',
-        'Pleases enable Bluetooth in your device settings.',
-        [
-          {text: 'Cancel', style: 'cancel'},
-          {
-            text: 'Open Bluetooth Settings',
-            onPress: () => {
-              Linking.sendIntent('android.settings.BLUETOOTH_SETTINGS');
-            },
-          },
-        ],
-      );
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isBluetoothReady]);
+  // useEffect(() => {
+  //   if (!isBluetoothReady) {
+  //     Alert.alert(
+  //       'Bluetooth not ready',
+  //       'Pleases enable Bluetooth in your device settings.',
+  //       [
+  //         {text: 'Cancel', style: 'cancel'},
+  //         {
+  //           text: 'Open Bluetooth Settings',
+  //           onPress: () => {
+  //             Linking.sendIntent('android.settings.BLUETOOTH_SETTINGS');
+  //           },
+  //         },
+  //       ],
+  //     );
+  //   }
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [isBluetoothReady]);
 
   useEffect(() => {
     console.log({L51: devices});
